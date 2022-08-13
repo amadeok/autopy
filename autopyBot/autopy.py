@@ -1,4 +1,4 @@
-import os, sys, time, argparse, mss, pyautogui
+import os, sys, time, argparse, mss, pyautogui, pyserial
 import logging
 from PIL import Image
 
@@ -84,6 +84,23 @@ class autopy:
         self.default_region = [0, 0, self.screen_res.width, self.screen_res.height]
         self.stop_t = False
         self.i = imgs(self, imgs_path)
+        
+
+    def init_arduino(reset_arduino):
+        while 1:
+            try:
+
+                port = f'COM{n}'
+                self.ard = serial.Serial(port=port, baudrate=115200, timeout=1000)
+                logging.info(f"Found port {port}")
+                break
+            except: 
+                n+=1
+                if n == 100:
+                    logging.info("arduino port not found")
+                    print("arduino port not found")
+                    sys.exit()
+
 
     def mouse_move(self, point, x_of, y_of):
         logging.debug(f"moving mouse  {point[0] + x_of},  {point[1] + y_of}")
