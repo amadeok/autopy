@@ -1,0 +1,9 @@
+setup.py
+autopyBot/__init__.py
+autopyBot/autopy.py
+autopyBot/autopy_base.py
+autopyBot.egg-info/PKG-INFO
+autopyBot.egg-info/SOURCES.txt
+autopyBot.egg-info/dependency_links.txt
+autopyBot.egg-info/requires.txt
+autopyBot.egg-info/top_level.txt

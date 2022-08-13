@@ -1,4 +1,4 @@
-import os, sys, time, argparse, mss, pyautogui, serial
+import os, sys, time, argparse, mss, pyautogui, pyserial
 import logging
 from PIL import Image
 
