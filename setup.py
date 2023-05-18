@@ -10,7 +10,9 @@ setup(
     license='BSD 2-clause',
     packages=['autopyBot'],
     install_requires=['mss',
-                      'numpy',                     
+                      'numpy', 
+                      "serial",
+                      "serial"                    
                       ],
 
     classifiers=[

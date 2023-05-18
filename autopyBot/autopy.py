@@ -1,4 +1,4 @@
-import os, sys, time, argparse, mss, pyautogui, serial
+import os, sys, time, argparse, mss, pyautogui
 import logging
 from PIL import Image
 
@@ -21,7 +21,11 @@ class image:
         self.first = 1
         self.click_area = None
         self.basename = name.split('.png')[0]
-        self.obj = Image.open(base_path + "\\" + self.name).convert('RGB')
+        if sys.platform == 'win32':
+            sep = "\\"
+        else:
+            sep = "/"
+        self.obj = Image.open(base_path + sep + self.name).convert('RGB')
         self.found = False
 
 class imgs:
