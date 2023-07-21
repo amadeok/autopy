@@ -284,10 +284,10 @@ class autopy:
     def type(self, text, interval_=0):
         self.rlog(f"typing  {text}")
         if (self.stop_t):  return -1
-        if app_logging.ubuntu_ver == "20.04" and 0:
-            sendSequence(text)
-        else:
-            pyautogui.write(text, interval=interval_)
+        # if app_logging.ubuntu_ver == "20.04" and 0:
+        #     sendSequence(text)
+        # else:
+        pyautogui.write(text, interval=interval_)
 
     def find(self, obj_l, loop=-1, search_all=None, timeout=None, confidence=None, region=None, do_until: fun_delegate =None,
               grayscale=True,  center=True, click=False, store_first=None, check_avee_running=True, timeout_exception=True):
