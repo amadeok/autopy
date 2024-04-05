@@ -1,4 +1,5 @@
 import datetime
+import pyperclip
 import os, sys, time, argparse, mss, pyautogui, serial, subprocess as sp
 import logging
 from collections import namedtuple
@@ -24,9 +25,13 @@ class fun_delegate():
         self.prev_time = time.time()
     
     def exec(self):
+        if len(self.args) >5: raise Exception("Too many arguments for fun_delegate: > 5")
+
         cur_time = time.time()
         d = cur_time - self.prev_time 
         if  d > self.interval:        
+            self.prev_time  = time.time() 
+
             if len(self.args) == 0: self.fun()
             elif len(self.args) == 1: self.fun(self.args[0])
             elif len(self.args) == 2: self.fun(self.args[0], self.args[1])
@@ -219,6 +224,7 @@ class autopy:
     def __init__(self, imgs_path, ext_src=None, img_prefix=""):
         self.imgs_path = imgs_path
         self.find_fun_timeout = 15
+        self.default_confidence = 0.8
         self.prev_time = time.time()
         self.screen_res = pyautogui.size()
         self.default_region = [0, 0, self.screen_res.width, self.screen_res.height]
@@ -281,6 +287,13 @@ class autopy:
         if (self.stop_t):  return -1
         pyautogui.press(key)
 
+    def _workaround_write(self, text):
+        self.rlog(f"typing  {text}")
+
+        pyperclip.copy(text)
+        pyautogui.hotkey('ctrl', 'v')
+        pyperclip.copy('')
+        
     def type(self, text, interval_=0):
         self.rlog(f"typing  {text}")
         if (self.stop_t):  return -1
@@ -289,16 +302,17 @@ class autopy:
         # else:
         pyautogui.write(text, interval=interval_)
 
-    def find(self, obj_l, loop=-1, search_all=None, timeout=None, confidence=None, region=None, do_until: fun_delegate =None,
-              grayscale=True,  center=True, click=False, store_first=None, check_avee_running=True, timeout_exception=True):
-        
+    def find(self, obj_l, loop=-1, search_all=None, timeout=None, confidence=None, region=None, do_until: fun_delegate =None,  grayscale=True,  center=True, click=False, store_first=None, check_avee_running=False, timeout_exception=True, click_function=None):
+        if do_until and type(do_until) != fun_delegate: raise Exception("Wrong fun_delegate type")
+
         store_first = self.store_first
-        if timeout == None: 
-            timeout = self.find_fun_timeout
+        
+        confidence = confidence if confidence else self.default_confidence
+        timeout = timeout if timeout else self.find_fun_timeout
+        
         if timeout:  
             self.prev_time = time.time()
-        
-        
+            
         if not isinstance(obj_l, list):
             obj_l = [obj_l]
         if do_until and not isinstance(do_until, list):
@@ -339,14 +353,19 @@ class autopy:
                         if obj_l[x].rs == None:
                             obj_l[x].rs = set_region(obj_l[x].found, center)
 
-                    if click:
+                    if type(click_function) == list:
+                        click_function[0](obj_l[x].found, click_function[1], click_function[2]) 
+                    elif click_function:
+                        click_function(obj_l[x].found) 
+                    elif click:
                         # if click == 'popups':
                         #     ob = getattr(ctx.i, ctx.pop_up_dict[obj_l[x].basename])
                         #     find(ob, ctx, click=2, store_first=2, region=None)
                         # else:
                             #sct_bmp(obj_l[x].found, ctx)
                         if self.mouse_move((obj_l[x].found[0], obj_l[x].found[1]), 0, 0):return -1
-                        pyautogui.click() 
+                        pyautogui.click()
+
 
                     self.rlog(f"found  {obj_l[x].name}, {obj_l[x].found}")
 
@@ -379,7 +398,7 @@ class autopy:
         return None
 
 
-    def wait_to_go(self, obj, region=None, confidence=None, timeout=None, sleep=0.01, timeout_exception=None):
+    def wait_to_go(self, obj, region=None, confidence=None, timeout=None, sleep=0.01, timeout_exception=None, do_while=None):
         if timeout:
             self.prev_time = time.time()
         found = 1
@@ -392,9 +411,10 @@ class autopy:
             if timeout:
                 if not check_timeout2(self, timeout):
                     if timeout_exception: 
-                        raise Exception(timeout_exception if type(timeout_exception) == str else "Critical image not found: " 
-                                        + " || image: " + str(obj.name))
+                        raise Exception(timeout_exception if type(timeout_exception) == str else "Critical image not found: " + " || image: " + str(obj.name))
                     return None
+            if do_while and found:
+                do_while()
         return 1
      
 

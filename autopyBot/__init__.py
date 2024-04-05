@@ -4,6 +4,6 @@ from . import autopy
 
 __all__ = [
     'autopy',
-    'image',
+    'fun_delegate',
     'imgs'
 ]
