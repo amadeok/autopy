@@ -407,6 +407,9 @@ class autopy:
                 #end_events(ctx); 
                 return -1
             found = self.find(obj, region=region, confidence=confidence)
+            if found:
+                logging.debug(f"wait_to_go object found {found}")
+                break
             time.sleep(sleep)
             if timeout:
                 if not check_timeout2(self, timeout):
