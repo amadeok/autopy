@@ -11,8 +11,8 @@ setup(
     packages=['autopyBot'],
     install_requires=['mss',
                       'numpy', 
-                      "serial",
-                      "serial"                    
+                      "PySerial",
+                      "pyautogui"                    
                       ],
 
     classifiers=[
