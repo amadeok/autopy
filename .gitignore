@@ -5,3 +5,4 @@ dist/
 autopyBot.egg-info
 build
 autopyBot/autopy backup.py
+autopyBot/__pycache__/
