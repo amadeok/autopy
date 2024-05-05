@@ -221,7 +221,7 @@ def receive_screen_shot_from_phone(ctx=None, save_file=False):
 
 
 class autopy:
-    def __init__(self, imgs_path, ext_src=None, img_prefix=""):
+    def __init__(self, imgs_path, ext_src=None, img_prefix="", use_arduino_click=None):
         self.imgs_path = imgs_path
         self.find_fun_timeout = 15
         self.default_confidence = 0.8
@@ -234,6 +234,7 @@ class autopy:
         self.ext_src_buffer = None
         self.conn = None
         self.store_first = False
+        self.ard_click = use_arduino_click
 
 
     def rlog(self, str_, conn=None,  level=logging.DEBUG):
