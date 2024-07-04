@@ -236,7 +236,21 @@ class autopy:
         self.store_first = False
         self.ard_click = use_arduino_click
 
-
+    
+    def handle_click(self, click_function, click, obj): #obj_l[x]
+        if type(click_function) == list:
+            click_function[0](obj.found, click_function[1], click_function[2]) 
+        elif click_function:
+            click_function(obj.found) 
+        elif click:
+            # if click == 'popups':
+            #     ob = getattr(ctx.i, ctx.pop_up_dict[obj_l[x].basename])
+            #     find(ob, ctx, click=2, store_first=2, region=None)
+            # else:
+                #sct_bmp(obj_l[x].found, ctx)
+            if self.mouse_move((obj.found[0], obj.found[1]), 0, 0):return -1
+            pyautogui.click()
+                        
     def rlog(self, str_, conn=None,  level=logging.DEBUG):
         str_ = str(str_)
         logging.log(level, str_)
@@ -354,19 +368,7 @@ class autopy:
                         if obj_l[x].rs == None:
                             obj_l[x].rs = set_region(obj_l[x].found, center)
 
-                    if type(click_function) == list:
-                        click_function[0](obj_l[x].found, click_function[1], click_function[2]) 
-                    elif click_function:
-                        click_function(obj_l[x].found) 
-                    elif click:
-                        # if click == 'popups':
-                        #     ob = getattr(ctx.i, ctx.pop_up_dict[obj_l[x].basename])
-                        #     find(ob, ctx, click=2, store_first=2, region=None)
-                        # else:
-                            #sct_bmp(obj_l[x].found, ctx)
-                        if self.mouse_move((obj_l[x].found[0], obj_l[x].found[1]), 0, 0):return -1
-                        pyautogui.click()
-
+                    self.handle_click(click_function, click, obj_l[x])
 
                     self.rlog(f"found  {obj_l[x].name}, {obj_l[x].found}")
 
