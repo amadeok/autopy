@@ -1,5 +1,5 @@
 import datetime
-import pyperclip
+import pyperclip, random
 import os, sys, time, argparse, mss, pyautogui, serial, subprocess as sp
 import logging
 from collections import namedtuple
@@ -131,7 +131,7 @@ def mss_locate(obj, ctx, confidence=None, region=None, grayscale=True,  center=T
         confidence = obj.conf
     ctx.rlog(f"mss_locate {obj.name}, {region}")
 
-    r = {"top": region[1], "left": region[0],  "width": region[2], "height": region[3]} 
+    r = {"top": int(region[1]), "left": int(region[0]),  "width": int(region[2]), "height": int(region[3])} 
 
     if not ctx.ext_src:
         with mss.mss() as sct:
@@ -221,7 +221,7 @@ def receive_screen_shot_from_phone(ctx=None, save_file=False):
 
 
 class autopy:
-    def __init__(self, imgs_path, ext_src=None, img_prefix="", use_arduino_click=None):
+    def __init__(self, imgs_path, ext_src=None, img_prefix="", use_arduino_click=None, rand_click_area=0):
         self.imgs_path = imgs_path
         self.find_fun_timeout = 15
         self.default_confidence = 0.8
@@ -235,20 +235,36 @@ class autopy:
         self.conn = None
         self.store_first = False
         self.ard_click = use_arduino_click
+        self.rand_click_area = rand_click_area # from 0 to 1
+        assert self.rand_click_area >= 0 and self.rand_click_area <= 1
 
-    
+    def update_def_region(self, handle):
+        self.default_region = [handle.left, handle.top, handle.width, handle.height]
+        #r = {"top": region[1], "left": region[0],  "width": region[2], "height": region[3]}
+
+    def proc_found(self, p):
+        if self.rand_click_area:
+            tpx = int((p[2] - p[2]//2) * self.rand_click_area)
+            tpy = int((p[3] - p[3]//2) * self.rand_click_area)
+            rx = [-tpx, tpx]
+            ry = [-tpy, tpy]
+            rp = (random.randrange(rx[0], rx[1]), random.randrange(ry[0], ry[1]))
+            rp2 = [p[0]+rp[0], p[1]+rp[1], p[2], p[3]]
+            return rp2
+        else:
+            return p
     def handle_click(self, click_function, click, obj): #obj_l[x]
         if type(click_function) == list:
-            click_function[0](obj.found, click_function[1], click_function[2]) 
+            click_function[0](self.proc_found(obj.found), click_function[1], click_function[2]) 
         elif click_function:
-            click_function(obj.found) 
+            click_function(self.proc_found(obj.found)) 
         elif click:
             # if click == 'popups':
             #     ob = getattr(ctx.i, ctx.pop_up_dict[obj_l[x].basename])
             #     find(ob, ctx, click=2, store_first=2, region=None)
             # else:
                 #sct_bmp(obj_l[x].found, ctx)
-            if self.mouse_move((obj.found[0], obj.found[1]), 0, 0):return -1
+            if self.mouse_move(self.proc_found(obj.found), 0, 0):return -1 #(obj.found[0], obj.found[1])
             pyautogui.click()
                         
     def rlog(self, str_, conn=None,  level=logging.DEBUG):
