@@ -425,7 +425,12 @@ class autopy:
             if self.stop_t: 
                 #end_events(ctx); 
                 return -1
-            found = self.find(obj, region=region, confidence=confidence)
+            if not type(obj) == list:
+                obj = [obj]
+            for o in obj:
+                found = self.find(obj, region=region, confidence=confidence)
+                if found:
+                    break
             if not found:
                 logging.debug(f"wait_to_go object gone {found}")
                 break
