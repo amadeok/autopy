@@ -375,9 +375,9 @@ class autopy:
                             region = obj_l[x].rs
                             #region = correct_region(obj_l[x].basename, obj_l[x].rs)
 
-                if not confidence: confidence = obj_l[x].conf
+                cur_conf= confidence if confidence else obj_l[x].conf
 
-                obj_l[x].found = mss_locate(obj_l[x], self, confidence=confidence, region=region, grayscale=grayscale, center=center)
+                obj_l[x].found = mss_locate(obj_l[x], self, confidence=cur_conf, region=region, grayscale=grayscale, center=center)
 
                 if obj_l[x].found: 
                     if store_first == 1:
