@@ -77,6 +77,7 @@ class image:
             sep = "/"
         self.obj = Image.open(base_path + sep + self.name).convert('RGB')
         self.found = False
+        self.prev_time = 0
 
 class imgs:
     def __init__(self, ctx, path, prefix):
@@ -158,9 +159,9 @@ def mss_locate(obj, ctx, confidence=None, region=None, grayscale=True,  center=T
         return None
     return found0
 
-def check_timeout2(ctx, sec):
+def check_timeout2(ctx, sec, pt):
     curr_time = time.time()
-    d = curr_time - ctx.prev_time
+    d = curr_time - pt#ctx.prev_time
     ctx.rlog(f"checking timeout, delta: {d}")
 
     if d > sec:
@@ -341,8 +342,8 @@ class autopy:
         confidence = confidence if confidence else self.default_confidence
         timeout = timeout if timeout else self.find_fun_timeout
         
-        if timeout:  
-            self.prev_time = time.time()
+        #if timeout:  
+        prev_time = time.time()
             
         if not isinstance(obj_l, list):
             obj_l = [obj_l]
@@ -401,7 +402,7 @@ class autopy:
                     return found 
                 if self.stop_t: timeout = 1
                 if timeout:
-                    if not check_timeout2(self, timeout):
+                    if not check_timeout2(self, timeout, prev_time):
                         if timeout_exception: 
                             raise Exception(timeout_exception if type(timeout_exception) == str else "Critical image not found: " 
                                             + " || images: " + str([e.name + " " for e in  obj_l]))
@@ -418,8 +419,8 @@ class autopy:
 
 
     def wait_to_go(self, obj, region=None, confidence=None, timeout=None, sleep=0.01, timeout_exception=None, do_while=None):
-        if timeout:
-            self.prev_time = time.time()
+        #if timeout:
+        prev_time = time.time()
         found = 1
         while found:
             if self.stop_t: 
@@ -435,7 +436,7 @@ class autopy:
                 logging.debug(f"wait_to_go object gone {found}")
                 break
             if timeout:
-                if not check_timeout2(self, timeout):
+                if not check_timeout2(self, timeout, prev_time):
                     if timeout_exception: 
                         raise Exception(timeout_exception if type(timeout_exception) == str else "Critical image not found: " + " || image: " + str(obj.name))
                     return None
