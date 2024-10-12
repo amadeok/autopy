@@ -75,7 +75,10 @@ class image:
             sep = "\\"
         else:
             sep = "/"
-        self.obj = Image.open(base_path + sep + self.name).convert('RGB')
+        try:
+            self.obj = Image.open(base_path + sep + self.name).convert('RGB')
+        except Exception as e:
+            logging.error(f"Failed to load file {e}")
         self.found = False
         self.prev_time = 0
 
@@ -85,7 +88,8 @@ class imgs:
         self.base_path = path
         self.dict = {}
         for file in file_list:
-
+            if not ".png" in file:
+                continue
             basename = file.split('.png')[0]
             img = image(ctx, file, 0.8, self.base_path)
             self.dict[basename] = img
