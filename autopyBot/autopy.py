@@ -150,9 +150,9 @@ def mss_locate(obj, ctx, confidence=None, region=None, grayscale=True,  center=T
 
     # if confidence == 0.99:
     #haystackImage.save('test.bmp')
-    if grayscale: gray = grayscale
-    else: gray = ctx.locate_grayscale
-    found = pyautogui.locate(obj.obj, haystackImage, confidence=confidence, grayscale=gray)
+    # if grayscale: gray = grayscale
+    # else: gray = ctx.locate_grayscale
+    found = pyautogui.locate(obj.obj, haystackImage, confidence=confidence, grayscale=grayscale)
 
     #t()
     if center and found:
