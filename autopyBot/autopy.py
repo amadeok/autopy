@@ -224,7 +224,22 @@ def receive_screen_shot_from_phone(ctx=None, save_file=False):
             f_o.write(arr[0:pos])
     return pil_im
 
-
+def get_quadrant(quadrant_str):
+    size = pyautogui.size()
+    w = size.width // 2
+    h = size.height // 2
+    
+    if quadrant_str == "tl":  # Top-left
+        return [0, 0, w, h]
+    elif quadrant_str == "tr":  # Top-right
+        return [w, 0, w, h]
+    elif quadrant_str == "bl":  # Bottom-left
+        return [0, h, w, h]
+    elif quadrant_str == "br":  # Bottom-right
+        return [w, h, w, h]
+    else:
+        raise ValueError("Invalid quadrant string. Use 'tl', 'tr', 'bl', or 'br'.")
+    
 class autopy:
     def __init__(self, imgs_path, ext_src=None, img_prefix="", use_arduino_click=None, rand_click_area=0):
         self.imgs_path = imgs_path
@@ -340,7 +355,8 @@ class autopy:
 
     def find(self, obj_l, loop=-1, search_all=None, timeout=None, confidence=None, region=None, do_until: fun_delegate =None,  grayscale=True,  center=True, click=False, store_first=None, check_avee_running=False, timeout_exception=True, click_function=None):
         if do_until and type(do_until) != fun_delegate: raise Exception("Wrong fun_delegate type")
-
+        if type(region) == str:
+            region = get_quadrant(region)
         store_first = self.store_first
         
         confidence = confidence if confidence else self.default_confidence
