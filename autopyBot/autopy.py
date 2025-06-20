@@ -1,4 +1,4 @@
-import datetime
+import datetime, pygetwindow as gw
 import pyperclip, random
 import os, sys, time, argparse, mss, pyautogui, serial, subprocess as sp
 import logging
@@ -81,7 +81,9 @@ class image:
             logging.error(f"Failed to load file {e}")
         self.found = False
         self.prev_time = 0
-
+    @property
+    def coors(self):
+        return self.found[:2] if self.found else None
 class imgs:
     def __init__(self, ctx, path, prefix):
         file_list = os.listdir(path if path is not None else 'imgs/') #os.listdir('imgs/')
@@ -176,19 +178,19 @@ def check_timeout2(ctx, sec, pt):
 
 from io import BytesIO
 
-def start_screen_cap():
+def start_screen_cap(dev = "ce041714f506223101"):
     time.sleep(0.01)
     print("starting phone screencap")
-    os.system("adb -s ce041714f506223101 exec-out screencap -p >" +  r"\\.\pipe\dain_a_id")
+    os.system(f"adb -s {dev} exec-out screencap -p >" +  r"\\.\pipe\dain_a_id")
 
 
-def receive_screen_shot_from_phone(ctx=None, save_file=False):
+def receive_screen_shot_from_phone(ctx=None, save_file=False, dev="ce041714f506223101"):
     output_pipe =  r'\\.\pipe\dain_a_id' 
     arr = ctx.ext_src_buffer if ctx else  bytearray(1080*1920*3)
 
     mode = win32pipe.PIPE_TYPE_MESSAGE | win32pipe.PIPE_READMODE_MESSAGE | win32pipe.PIPE_WAIT
     fd0 = win32pipe.CreateNamedPipe( output_pipe, win32pipe.PIPE_ACCESS_DUPLEX, mode, 1, 65536, 65536, 0, None)
-    t = threading.Thread(target=start_screen_cap, args=())
+    t = threading.Thread(target=lambda: start_screen_cap(dev), args=())
     t.start()
     #sp.Popen(["adb", "-s", "ce041714f506223101", "exec-out", "screencap", "-p", ">",  "\\.\pipe\dain_a_id"])
     print("connecting to pipe")
@@ -218,7 +220,7 @@ def receive_screen_shot_from_phone(ctx=None, save_file=False):
     f = BytesIO(arr[0:pos])
     pil_im = Image.open(f)
     #pil_im = Image.frombuffer('RGB', (1080, 2220, ctx.ext_src_buffer[0:len(pos)], 'raw', 'BGRX', 0, 1)
-    print(time.time() -t0)
+    # print(time.time() -t0)
     if save_file:
         with open("f.png", "wb") as f_o:
             f_o.write(arr[0:pos])
@@ -353,10 +355,12 @@ class autopy:
         # else:
         pyautogui.write(text, interval=interval_)
 
-    def find(self, obj_l, loop=-1, search_all=None, timeout=None, confidence=None, region=None, do_until: fun_delegate =None,  grayscale=True,  center=True, click=False, store_first=None, check_avee_running=False, timeout_exception=True, click_function=None):
-        if do_until and type(do_until) != fun_delegate: raise Exception("Wrong fun_delegate type")
+    def find(self, obj_l, loop=-1, search_all=None, timeout=None, confidence=None, region=None, do_until =None,  grayscale=True,  center=True, click=False, store_first=None, check_avee_running=False, timeout_exception=True, click_function=None):
+        # if do_until and type(do_until) != fun_delegate: raise Exception("Wrong fun_delegate type")
         if type(region) == str:
             region = get_quadrant(region)
+        elif type(region) == gw.Window:
+            region = [region.left, region.top, region.width, region.height ]
         store_first = self.store_first
         
         confidence = confidence if confidence else self.default_confidence
@@ -364,7 +368,20 @@ class autopy:
         
         #if timeout:  
         prev_time = time.time()
-            
+        
+        if type(obj_l) == str and hasattr(self.i, obj_l): 
+            obj_l = [getattr(self.i, obj_l)]
+            additional_objs = []
+            counter = 2#2 if obj_l[0].basename.endswith("1")  else 1
+            while True:
+                attr_name = f"{obj_l[0].basename}{counter}"
+                if hasattr(self.i, attr_name):
+                    additional_objs.append(getattr(self.i, attr_name))
+                    counter += 1
+                else:
+                    break
+            obj_l += additional_objs
+        
         if not isinstance(obj_l, list):
             obj_l = [obj_l]
         if do_until and not isinstance(do_until, list):
@@ -429,7 +446,8 @@ class autopy:
                         return None
                 if do_until:
                     for del_ in do_until:
-                        del_.exec()
+                        if callable(del_):  del_()
+                        else: del_.exec()
                 time.sleep(loop)
         else:
             found  = find_partial_(confidence, region, grayscale, center)
