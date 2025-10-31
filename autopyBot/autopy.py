@@ -2,7 +2,7 @@ import ctypes
 import datetime, pygetwindow as gw
 import pyperclip, random
 import os, sys, time, argparse, mss, pyautogui, serial, subprocess as sp
-import logging
+import logging, monitor_scaling
 from collections import namedtuple
 if os.name != "posix":
     import win32gui, win32ui, win32con, numpy
@@ -42,7 +42,34 @@ class fun_delegate():
             elif len(self.args) == 3: self.fun(self.args[0], self.args[1], self.args[2])
             elif len(self.args) == 4:  self.fun(self.args[0], self.args[1], self.args[2], self.args[3])                                                                      
             elif len(self.args) == 5:  self.fun(self.args[0], self.args[1], self.args[2], self.args[3],  self.args[4])       
-                                                                           
+      
+      
+import subprocess
+import json
+import sys
+
+def get_monitor_scalings():
+    try:
+        result = subprocess.run(
+            [sys.executable, os.path.join(os.path.dirname(__file__), "monitor_scaling.py") ],
+            #capture_output=True,
+            text=True,
+            timeout=1  # seconds
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"Subprocess failed: {result.stderr}")
+        return json.loads(result.stdout)
+    except Exception as e:
+        print(f"Error getting monitor scalings: {e}")
+        return []
+# 
+# # Example usage
+# scalings = get_monitor_scalings()
+# for m in scalings:
+#     print(f"Monitor {m['rect']['left']},{m['rect']['top']}: {m['scaling']:.2f}x ({int(m['scaling']*100)}%)")
+#     
+
+                                                                     
 
 #from avee_utils import is_avee_running
 def adb_output(cmd):
@@ -134,7 +161,8 @@ def background_screenshot(hwnd, width, height, save_file=False):
     return pil_im
     #haystackImage =    Image.frombytes('RGB', sct_img.size, sct_img.rgb)
 
-def mss_locate(obj, ctx, confidence=None, region=None, grayscale=True,  center=True):
+def mss_locate(obj, ctx , confidence=None, region=None, grayscale=True,  center=True):
+    ctx : autopy = ctx
     if region == None:
        # res = pyautogui.size()
         region = ctx.default_region #[0, 0, res[0], res[1]]
@@ -167,7 +195,7 @@ def mss_locate(obj, ctx, confidence=None, region=None, grayscale=True,  center=T
         found0 = (found[0]+ r['left'], found[1] + r['top'], obj.obj.width, obj.obj.height)#r['width'], r['height'])
     else:
         return None
-    return found0
+    return  found0
 
 def check_timeout2(ctx, sec, pt):
     curr_time = time.time()
@@ -247,7 +275,7 @@ def get_quadrant(quadrant_str):
         raise ValueError("Invalid quadrant string. Use 'tl', 'tr', 'bl', or 'br'.")
     
 class autopy:
-    def __init__(self, imgs_path, ext_src=None, img_prefix="", use_arduino_click=None, rand_click_area=0):
+    def __init__(self, imgs_path, ext_src=None, img_prefix="", use_arduino_click=None, rand_click_area=0, default_click_fun=pyautogui.click):
         self.imgs_path = imgs_path
         self.find_fun_timeout = 15
         self.default_confidence = 0.8
@@ -262,27 +290,36 @@ class autopy:
         self.store_first = False
         self.ard_click = use_arduino_click
         self.rand_click_area = rand_click_area # from 0 to 1
+        self.default_click_function = default_click_fun
         assert self.rand_click_area >= 0 and self.rand_click_area <= 1
-        try:
-            ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PROCESS_SYSTEM_DPI_AWARE
-        except Exception:
-            try:
-                ctypes.windll.user32.SetProcessDPIAware()
-            except Exception:
-                pass  # Ignore if DPI awareness can't be set
-
-        dpi = ctypes.windll.user32.GetDpiForSystem()
-        self.dip_scaling = dpi / 96.0
-
+        
+#         DPI_AWARENESS_CONTEXT_SYSTEM_AWARE = -1  # from windef.h
+#         user32 = ctypes.windll.user32
+# 
+#         if hasattr(user32, "SetProcessDpiAwarenessContext"):
+#             user32.SetProcessDpiAwarenessContext.argtypes = [wintypes.HANDLE]
+#             user32.SetProcessDpiAwarenessContext.restype = wintypes.BOOL
+# 
+#             success = user32.SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE)
+#             if success != 0:
+#                 raise ctypes.WinError()
+#         else:
+#             user32.SetProcessDPIAware()
+# 
+#         dpi = ctypes.windll.user32.GetDpiForSystem()
+#         self.dip_scaling = dpi / 96.0
+#         print(f"System DPI: {dpi}")
+#         print(f"Scaling factor: {self.dip_scaling:.2f}x ({self.dip_scaling * 100:.0f}%)")
+        
     def update_def_region(self, handle):
         self.default_region = [handle.left, handle.top, handle.width, handle.height]
         #r = {"top": region[1], "left": region[0],  "width": region[2], "height": region[3]}
 
-    def proc_found(self, p):
+    def proc_found(self, p, apply_scaling):
         
-        if self.dip_scaling != 1:
-            p[0] = round(p[0]*self.dip_scaling)
-            p[1] = round(p[1]*self.dip_scaling)
+        # if apply_scaling and self.dip_scaling != 1:
+        #     p[0] = round(p[0]*self.dip_scaling)
+        #     p[1] = round(p[1]*self.dip_scaling)
             
         if self.rand_click_area:
             tpx = int((p[2] - p[2]//2) * self.rand_click_area)
@@ -294,19 +331,21 @@ class autopy:
             return rp2
         else:
             return p
-    def handle_click(self, click_function, click, obj): #obj_l[x]
+    def handle_click(self, click_function, click, obj, apply_scaling): #obj_l[x]
+        coors__ = self.proc_found(list(obj.found), apply_scaling)
         if type(click_function) == list:
-            click_function[0](self.proc_found(list(obj.found)), click_function[1], click_function[2]) 
+            click_function[0](coors__, click_function[1], click_function[2]) 
         elif click_function:
-            click_function(self.proc_found(list(obj.found))) 
+            click_function(*(coors__[:2]))
         elif click:
             # if click == 'popups':
             #     ob = getattr(ctx.i, ctx.pop_up_dict[obj_l[x].basename])
             #     find(ob, ctx, click=2, store_first=2, region=None)
             # else:
                 #sct_bmp(obj_l[x].found, ctx)
-            if self.mouse_move(self.proc_found(list(obj.found)), 0, 0):return -1 #(obj.found[0], obj.found[1])
-            pyautogui.click()
+            # if self.mouse_move(coors__, 0, 0):return -1 #(obj.found[0], obj.found[1])
+            # pyautogui.click()
+            self.default_click_function(*(coors__[:2]))
                         
     def rlog(self, str_, conn=None,  level=logging.DEBUG):
         str_ = str(str_)
@@ -374,7 +413,9 @@ class autopy:
         # else:
         pyautogui.write(text, interval=interval_)
 
-    def find(self, obj_l, loop=-1,  timeout=None, confidence=None, region=None, do_until =None,  grayscale=True,  center=True, click=False, store_first=None, check_avee_running=False, timeout_exception=True, click_function=None):
+    def find(self, obj_l, loop=-1,  timeout=None, confidence=None, region=None, do_until =None, 
+             grayscale=True,  center=True, click=False, store_first=None, check_avee_running=False, 
+             timeout_exception=True, click_function=None, apply_scaling=False):
         # if do_until and type(do_until) != fun_delegate: raise Exception("Wrong fun_delegate type")
         
         if type(region) == str:
@@ -448,7 +489,7 @@ class autopy:
                         if obj_l[x].rs == None:
                             obj_l[x].rs = set_region(obj_l[x].found, center)
 
-                    self.handle_click(click_function, click, obj_l[x])
+                    self.handle_click(click_function, click, obj_l[x], apply_scaling)
 
                     self.rlog(f"found  {obj_l[x].name}, {obj_l[x].found}")
 
