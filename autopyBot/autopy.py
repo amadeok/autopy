@@ -1,3 +1,4 @@
+import ctypes
 import datetime, pygetwindow as gw
 import pyperclip, random
 import os, sys, time, argparse, mss, pyautogui, serial, subprocess as sp
@@ -11,6 +12,9 @@ from PIL import Image
 pil_logger = logging.getLogger('PIL')
 pil_logger.setLevel(logging.INFO)
 log_to_file = False
+import pyscreeze
+
+pyscreeze.USE_IMAGE_NOT_FOUND_EXCEPTION = False
 
 if log_to_file:
     logging.basicConfig(filename='app.log', filemode='w', format='%(asctime)s - %(message)s', level=level)
@@ -259,12 +263,27 @@ class autopy:
         self.ard_click = use_arduino_click
         self.rand_click_area = rand_click_area # from 0 to 1
         assert self.rand_click_area >= 0 and self.rand_click_area <= 1
+        try:
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PROCESS_SYSTEM_DPI_AWARE
+        except Exception:
+            try:
+                ctypes.windll.user32.SetProcessDPIAware()
+            except Exception:
+                pass  # Ignore if DPI awareness can't be set
+
+        dpi = ctypes.windll.user32.GetDpiForSystem()
+        self.dip_scaling = dpi / 96.0
 
     def update_def_region(self, handle):
         self.default_region = [handle.left, handle.top, handle.width, handle.height]
         #r = {"top": region[1], "left": region[0],  "width": region[2], "height": region[3]}
 
     def proc_found(self, p):
+        
+        if self.dip_scaling != 1:
+            p[0] = round(p[0]*self.dip_scaling)
+            p[1] = round(p[1]*self.dip_scaling)
+            
         if self.rand_click_area:
             tpx = int((p[2] - p[2]//2) * self.rand_click_area)
             tpy = int((p[3] - p[3]//2) * self.rand_click_area)
@@ -277,16 +296,16 @@ class autopy:
             return p
     def handle_click(self, click_function, click, obj): #obj_l[x]
         if type(click_function) == list:
-            click_function[0](self.proc_found(obj.found), click_function[1], click_function[2]) 
+            click_function[0](self.proc_found(list(obj.found)), click_function[1], click_function[2]) 
         elif click_function:
-            click_function(self.proc_found(obj.found)) 
+            click_function(self.proc_found(list(obj.found))) 
         elif click:
             # if click == 'popups':
             #     ob = getattr(ctx.i, ctx.pop_up_dict[obj_l[x].basename])
             #     find(ob, ctx, click=2, store_first=2, region=None)
             # else:
                 #sct_bmp(obj_l[x].found, ctx)
-            if self.mouse_move(self.proc_found(obj.found), 0, 0):return -1 #(obj.found[0], obj.found[1])
+            if self.mouse_move(self.proc_found(list(obj.found)), 0, 0):return -1 #(obj.found[0], obj.found[1])
             pyautogui.click()
                         
     def rlog(self, str_, conn=None,  level=logging.DEBUG):
@@ -355,8 +374,9 @@ class autopy:
         # else:
         pyautogui.write(text, interval=interval_)
 
-    def find(self, obj_l, loop=-1, search_all=None, timeout=None, confidence=None, region=None, do_until =None,  grayscale=True,  center=True, click=False, store_first=None, check_avee_running=False, timeout_exception=True, click_function=None):
+    def find(self, obj_l, loop=-1,  timeout=None, confidence=None, region=None, do_until =None,  grayscale=True,  center=True, click=False, store_first=None, check_avee_running=False, timeout_exception=True, click_function=None):
         # if do_until and type(do_until) != fun_delegate: raise Exception("Wrong fun_delegate type")
+        
         if type(region) == str:
             region = get_quadrant(region)
         elif type(region) == gw.Window:
@@ -369,21 +389,27 @@ class autopy:
         #if timeout:  
         prev_time = time.time()
         
-        if type(obj_l) == str and hasattr(self.i, obj_l): 
-            obj_l = [getattr(self.i, obj_l)]
-            additional_objs = []
-            counter = 2#2 if obj_l[0].basename.endswith("1")  else 1
-            while True:
-                attr_name = f"{obj_l[0].basename}{counter}"
-                if hasattr(self.i, attr_name):
-                    additional_objs.append(getattr(self.i, attr_name))
-                    counter += 1
-                else:
-                    break
-            obj_l += additional_objs
-        
         if not isinstance(obj_l, list):
             obj_l = [obj_l]
+        for ob in obj_l:
+            
+            if type(ob) == str and hasattr(self.i, ob): 
+                str_o = ob[:]
+                ob = getattr(self.i, ob)
+                
+                additional_objs = []
+                counter = 2#2 if obj_l[0].basename.endswith("1")  else 1
+                while True:
+                    attr_name = f"{ob.basename}{counter}"
+                    if hasattr(self.i, attr_name):
+                        additional_objs.append(getattr(self.i, attr_name))
+                        counter += 1
+                    else:
+                        break
+                obj_l[obj_l.index(str_o)] = ob
+                obj_l += additional_objs
+        
+
         if do_until and not isinstance(do_until, list):
             do_until = [do_until]
 
